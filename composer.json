@@ -1,0 +1,22 @@
+{
+    "name": "marcomdmj/mediamanager",
+    "description": "Media Manager",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "MarcoMdMj",
+            "email": "marcomdmj@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MarcoMdMj\\MediaManager\\": "src"
+        }
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=5.4.0",
+        "Illuminate/Support": "^5.3"
+    }
+}
