@@ -49,20 +49,84 @@ class Resource
     private $mimetypes;
 
     /**
+     * If image, contains the width of the image.
+     * @var integer|null
+     */
+    private $width = null;
+
+    /**
+     * If image, contains the height of the image.
+     * @var integer|null
+     */
+    private $height = null;
+
+    /**
      * Init the resource. Cannot be called directly because the Resource is
      * by definition inmutable. Must use static accessors to instantiate.
      * @param string      $raw
      * @param string|null $mimetype
+     * @param boolean     $is_image
      */
-    private function __construct($raw, $mimetype = null)
+    private function __construct($raw, $mimetype = null, $is_image = false)
     {
         $this->raw = $raw;
-        $this->detectMimetype($mimetype);
+
+        if ($is_image) {
+            $this->buildImageResource($mimetype);
+        } else {
+            $this->detectMimetype($mimetype);
+        }
+    }
+
+    /**
+     * Build the image resource.
+     * @param  string|null $mimetype
+     * @return void
+     */
+    private function buildImageResource($mimetype)
+    {
+        if (!($image = imagecreatefromstring($this->raw))) {
+            throw new MediaResourceException('The given content is not a valid image.');
+        }
+
+        ob_start();
+
+        switch ($mimetype) {
+            case 'image/jpeg':
+            case 'image/jpg':
+                imagejpeg($image, null, 100);
+                $this->mimetype = 'image/jpeg';
+                $this->extension('jpg');
+                break;
+                
+            case 'image/png':
+                imagepng($image, null, 0);
+                $this->mimetype = 'image/png';
+                $this->extension('png');
+                break;
+                
+            case 'image/gif':
+                imagegif($image);
+                $this->mimetype = 'image/gif';
+                $this->extension('gif');
+                break;
+
+            default:
+                ob_end_clean();
+                throw new MediaResourceException("The given image mimetype ($mimetype) is not supported.");
+        }
+
+        $this->raw = ob_get_clean();
+
+        $this->width  = imagesx($image);
+        $this->height = imagesy($image);
+
+        imagedestroy($image);
     }
 
     /**
      * @param  Attempt to detect the resource mimetype
-     * @return [type]
+     * @return string
      */
     private function detectMimetype($default = null)
     {
@@ -130,7 +194,7 @@ class Resource
 
     /**
      * Static function to init the resource by giving a full data uri.
-     * @param  string $uri
+     * @param  string  $uri
      * @return Resource
      * @uses   DataUriManager
      */
@@ -141,6 +205,26 @@ class Resource
         $instance = new static(
             $dataURI->content_decoded(),
             $dataURI->mime()
+        );
+
+        return $instance;
+    }
+
+    /**
+     * Static function to init the resource by giving a full image data uri.
+     * @param  string      $uri
+     * @param  string|null $mimetype
+     * @return Resource
+     * @uses   DataUriManager
+     */
+    public static function fromImageDataUri($uri, $mimetype = null)
+    {
+        $dataURI = DataURIManager::decode($uri);
+
+        $instance = new static(
+            $dataURI->content_decoded(),
+            is_null($mimetype) ? $dataURI->mime() : $mimetype, 
+            true
         );
 
         return $instance;
@@ -258,11 +342,30 @@ class Resource
 
     /**
      * Get the mimetype.
-     * @param  string|null $mimetype
-     * @return string|Resource
+     * @return string
      */
     public function mimetype()
     {
         return $this->mimetype;
+    }
+
+    /**
+     * If image, get the width.
+     * @return string
+     * 
+     */
+    public function width()
+    {
+        return $this->width;
+    }
+
+    /**
+     * If image, get the height.
+     * @return string
+     * 
+     */
+    public function height()
+    {
+        return $this->height;
     }
 }
